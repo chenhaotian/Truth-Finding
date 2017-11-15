@@ -14,7 +14,7 @@ void printProgress (double percentage)
 }
 
 // [[Rcpp::export]]
-int one_cat(NumericVector probs){
+int one_cat_zero_begin(NumericVector probs){
   int k = probs.size();
   int res = 0;
   double z=sum(probs);
@@ -27,15 +27,14 @@ int one_cat(NumericVector probs){
   rmultinom(1, probs.begin(), k, ans.begin());
   for(int j=0;j<k;++j){
     if(ans[j]==1){
-      res=j+1;
+      res=j;
       break;
     }
   }
   return res;
 }
 
-
-input: facts claims ctsc
+input: facts(vector) claims fcidx(vector) ctsc beta alpha0 alpha1
 
 for( f in fid){
     
@@ -53,7 +52,44 @@ for( f in fid){
 }
 
 // [[Rcpp::export]]
-List getcvk(IntegerVector facts, IntegerMatrix claims, IntegerMatrix ctsc, int maxit, int sumL, int K,int V, IntegerVector L,double a, double g){
+List truthfinding(IntegerVector facts,IntegerVector fcidx, IntegerMatrix claims, IntegerMatrix ctsc, NumericMatrix beta, NumericMatrix alpha0, NumericMatrix alpha1){
+  int nfacts=facts.size();
+  int startidx=0,endidx=0;	// claim start and end index for each fact
+  NumericVector probs(2);
+  double conditional_claim=1;
+  
+  // main gibbs loop
+  // for each fact f...
+  for(int f = 0; f < nfacts; ++f){
+    startidx=fcidx[f];
+    endidx=fcidx[f+1];
+    // generate sample probabilities
+    for(int t = 0; t < 2; ++t){
+      // reset conditional claim probability
+      conditional_claim=1;
+      // for each claim c in fact f...
+      for(int c = startidx; c < endidx; ++c){
+	conditional_claim = conditional_claim*
+      }
+      probs[t] = beta(f,t)*conditional_claim
+    }
+    // sample and update facts
+    one_cat_zero_begin(probs);
+
+    
+    // update ctsc
+    for(int c = startidx; c < endidx; ++c){
+      
+    }
+    
+  }
+  
+  
+}
+
+
+// [[Rcpp::export]]
+List truthfinding(IntegerVector facts, IntegerMatrix claims, IntegerMatrix ctsc, int maxit, int sumL, int K,int V, IntegerVector L,double a, double g){
   int doc=0,word=0,topic=0,idx=0;
   NumericVector probs(K);
   int pwt_idx=0;		     // indicating P(w|t) storage index

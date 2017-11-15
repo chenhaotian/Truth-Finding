@@ -71,11 +71,21 @@ ctsc <- ctsc[order(ctsc$t,ctsc$sid,ctsc$o),]
 
 ## fact-claim index, claim start posiitons of each fact
 ## to simplify C++ code, here the index starts with zero
-fcidx <- match(facts$fid,claims$fid)-1             #facts and claims must be sorted beforehand
-fcidx <- c(fcidx,nrow(claims))                     #append end position for easier representation
+fcidx <- match(facts$fid,claims$fid)-1L             #facts and claims must be sorted beforehand
+fcidx <- c(fcidx,nrow(claims))                      #append end position for easier representation
+
+function input:
+beta: Fx2 numeric matrix, each row is the beta prior the corresponding fact
+alpha0: Sx2 numeric matrix, each row is the beta prior for the corresponding source FPR
+alpha1: Sx2 numeric matrix, each row is the beta prior for the corresponding source sensitivity
 
 
-input: facts claims fcidx ctsc
+
+input: facts(integervector) claims(integermatrix) fcidx(integervector) ctsc(integermatrix) beta(numericmatrix) alpha0(numericmatrix) alpha1(numericmatrix)
+claims: fid sid o
+ctsc:   t   sid o count
+
+
 
 for( f in fid){
     
