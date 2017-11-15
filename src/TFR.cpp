@@ -36,6 +36,10 @@ int one_cat_zero_begin(NumericVector probs){
 
 // [[Rcpp::export]]
 List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix claims, IntegerMatrix ctsc, NumericMatrix beta, NumericMatrix alpha0, NumericMatrix alpha1){
+
+  // claims: fid sid o
+  // ctsc:   t   sid o count
+
   int nfacts=facts.size();
   int nsources=alpha0.row();
   int expand_source_claim=nsources*2;
@@ -78,10 +82,10 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
     probs[0] = beta(f,0)*conditional_claim0;
     probs[1] = beta(f,1)*conditional_claim1;
     
-    // sample and update facts
+    // 3. sample and update facts
     fact_aft=one_cat_zero_begin(probs);
     
-    // update ctsc
+    // 4. update ctsc
     for(int c = startidx; c < endidx; ++c){
       sid=claims(c,1);
       o=claims(c,2);
@@ -94,8 +98,13 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
       idx=fact_aft*expand_source_claim+sid*2+o;
       ctsc(idx,3)=ctsc(idx,3)+1;
     }
-    
+
+    // 5. sample
   }
+
+  return Rcpp::List::create(Rcpp::Named("facts") = facts,
+			    Rcpp::Named("claims") = claims,
+			    Rcpp::Named("ctsc") = ctst);
 }
 
 
