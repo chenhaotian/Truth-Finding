@@ -121,11 +121,14 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
 	ctsc_out[l] = ctsc_out[l] + (double)ctsc(l,3)/(double)sample_size;
       }
     }
+
+    printProgress((double)it/maxit);
     
   }
   
   return Rcpp::List::create(Rcpp::Named("facts_out") = facts_out,
-			    Rcpp::Named("ctsc_out") = ctsc_out);
+			    Rcpp::Named("ctsc_out") = ctsc_out,
+			    Rcpp::Named("sample_size") = sample_size);
 }
 
 
