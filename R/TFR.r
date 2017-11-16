@@ -38,17 +38,35 @@ rawdb <- unique(data.frame(e=sample(letters[1:4],30,replace = TRUE),a=sample(c("
     alpha0: Sx2 numeric matrix, each row is the beta prior for the corresponding source FPR, each element is at least 1
 alpha1: Sx2 numeric matrix, each row is the beta prior for the corresponding source sensitivity, each element is at least 1
 
+checkprior <- function(prior,class=character(),nrow=NULL,ncol=NULL,length=NULL,elementclasses=NULL){
+    is(prior,class) &
+    ifelse(!is.null(nrow),nrow(prior)==nrow,TRUE) &
+    ifelse(!is.null(ncol),ncol(prior)==ncol,TRUE) &
+    ifelse(!is.null(length),length(prior)==length,TRUE) &
+    ifelse(!is.null(elementclasses),all(sapply(prior,class)==elementclasses),TRUE)
+}
 
-TF_binary <- function(rawdb,beta,alpha0,alpha1){
-    ## integrity check
+TF_binary <- function(rawdb,beta,alpha0,alpha1,burnin,maxit,sample_step){
+    burnin <- as.integer(burnin)
+    maxit <- as.integer(maxit)
+    sample_step<- as.integer(sample_step)
+    ## integrity check part1
     if(is.matrix(rawdb)) rawdb <- as.data.frame(rawdb)
-    if((!is.data.frame(rawdb)) | ncol(rawdb)!=3 | any(duplicated(rawdb))) stop("rawdb must be a data.frame or matrix with exactly 3 columns and no duplicate entries")
+    if(!checkprior(rawdb,"data.frame",ncol=3) | any(duplicated(rawdb))) stop("rawdb must be a data.frame or matrix with exactly 3 columns and no duplicate entries")
 
     ## 1. mappers
     factsmapper <- unique(rawdb[,c("e","a")])
     factsmapper$fid <- 0L:(nrow(factsmapper)-1L)
     sourcesmapper <- unique(rawdb[,c("s")])
     sourcesmapper <- data.frame(s=sourcesmapper,sid=0L:(length(sourcesmapper)-1L),stringsAsFactors = FALSE)
+    
+    ## integrity check part2
+    if(is.numeric(beta)) beta <- matrix(beta,nrow=nrow(factsmapper),ncol = 2)
+    if(is.numeric(alpha0)) alpha0 <- matrix(alpha0,nrow=nrow(sourcesmapper),ncol = 2)
+    if(is.numeric(alpha1)) alpha1 <- matrix(alpha1,nrow=nrow(sourcesmapper),ncol = 2)
+    if(!checkprior(beta,"matrix",nrow(factsmapper),2)) stop("beta should be of length 1 or a numeric matrix of dimension n.facts x 2")
+    if(!checkprior(alpha0,"matrix",nrow(sourcesmapper),2) |
+       !checkprior(alpha1,"matrix",nrow(sourcesmapper),2)) stop("alpha0 or alpha1 should both be of length 1 or a numeric matrix of dimension n.sources x 2")
     
     ## 2. claims
     claims <- do.call(rbind.data.frame,lapply(split(rawdb,rawdb$e),function(d){
@@ -82,8 +100,6 @@ TF_binary <- function(rawdb,beta,alpha0,alpha1){
     fcidx <- match(facts$fid,claims$fid)-1L             #facts and claims must be sorted beforehand
     fcidx <- c(fcidx,nrow(claims))                      #append end position for easier representation
 
-    truthfinding_binary(facts=facts$t,fcidx=fcidx, claims=as.matrix(claims), ctsc=as.matrix(ctsc), beta=beta, alpha0=alpha0, alpha1=alpha1)
-
-
+    truthfinding_binary(facts=facts$t,fcidx=fcidx, claims=as.matrix(claims), ctsc=as.matrix(ctsc), beta=beta, alpha0=alpha0, alpha1=alpha1,burnin = burnin, maxit = maxit,sample_step = sample_step)
     
 }
