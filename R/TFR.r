@@ -31,12 +31,7 @@
 ## t: truth
 
 ## raw data
-rawdb <- unique(data.frame(e=sample(letters[1:4],30,replace = TRUE),a=sample(c("spa","breakfast","iron"),size = 30,replace = TRUE),s=sample(toupper(letters[1:3]),30,replace = TRUE),stringsAsFactors = FALSE))
-
-function input:
-beta: Fx2 numeric matrix, each row is the beta prior the corresponding fact
-alpha0: Sx2 numeric matrix, each row is the beta prior for the corresponding source FPR
-alpha1: Sx2 numeric matrix, each row is the beta prior for the corresponding source sensitivity
+rawdb <- unique(data.frame(e=sample(letters,3000,replace = TRUE),a=sample(c("spa","breakfast","iron"),size = 3000,replace = TRUE),s=sample(toupper(letters[1:3]),300,replace = TRUE),stringsAsFactors = FALSE))
 
 checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,ELEMENTCLASSES=NULL,VALUES=NULL){
     ## print(class(prior))
@@ -51,6 +46,9 @@ checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,E
 library(Rcpp)
 sourceCpp("src/TFR.cpp")
 
+## beta: Fx2 numeric matrix, each row is the beta prior the corresponding fact
+## alpha0: Sx2 numeric matrix, each row is the beta prior for the corresponding source FPR
+## alpha1: Sx2 numeric matrix, each row is the beta prior for the corresponding source sensitivity
 TF_binary <- function(rawdb,binary=FALSE,beta,alpha0,alpha1,burnin,maxit,sample_step){
 
     cat("Preparing mappers...")
@@ -134,8 +132,6 @@ TF_binary <- function(rawdb,binary=FALSE,beta,alpha0,alpha1,burnin,maxit,sample_
     res$sourcesmapper <- sourcesmapper
     return(res)
 }
-
-
 
 ## match <- crowd[crowd$decision==1,]
 

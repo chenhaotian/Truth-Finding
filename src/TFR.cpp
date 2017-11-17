@@ -58,6 +58,9 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
   }
   NumericVector facts_out(nfacts,(double)0);
   NumericVector ctsc_out(ctsc.nrow(),(double)0);
+  NumericVector recall(nsources,(double)0);
+  NumericVector fpr(nsources,(double)0);
+  NumericVector precision(nsources,(double)0);
   
   // main gibbs loop
   int it = 0;
@@ -125,10 +128,29 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
     printProgress((double)it/maxit);
     
   }
+
+
+  // expand_source_claim
+  for(int s = 0; s < nsources; ++s){
+    // recall
+    idx=expand_source_claim+s*(int)2+1;
+    recall[s] = ((double)ctsc_out[idx]+alpha1(s,0))/
+      ((double)ctsc_out[idx]+(double)ctsc_out[idx-1]+alpha1(s,0)+alpha1(s,1));
+    
+    // precision
+    precision[s] = ((double)ctsc_out[idx]+alpha1(s,1))/
+      ((double)ctsc_out[idx] + (double)ctsc_out[s*(int)2+(int)1] + alpha0(s,1) + alpha1(s,1));
+    
+    // fpr
+    idx=s*(int)2;
+    fpr[s] = ((double)ctsc_out[idx]+alpha0(s,0))/
+      ((double)ctsc_out[idx]+(double)ctsc_out[idx+1]+alpha0(s,0)+ alpha0(s,1));
+  }
   
   return Rcpp::List::create(Rcpp::Named("facts_out") = facts_out,
 			    Rcpp::Named("ctsc_out") = ctsc_out,
-			    Rcpp::Named("sample_size") = sample_size);
+			    Rcpp::Named("sample_size") = sample_size,
+			    Rcpp::Named("recall") = recall,
+			    Rcpp::Named("precision") = precision,
+			    Rcpp::Named("fpr") = fpr);
 }
-
-
