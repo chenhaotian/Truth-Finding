@@ -59,7 +59,7 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
   NumericVector facts_out(nfacts,(double)0);
   NumericVector ctsc_out(ctsc.nrow(),(double)0);
   NumericVector recall(nsources,(double)0);
-  NumericVector fpr(nsources,(double)0);
+  NumericVector specificity(nsources,(double)0);
   NumericVector precision(nsources,(double)0);
   
   // main gibbs loop
@@ -77,7 +77,8 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
 	o=claims(c,2);
 	
 	// 2.0 generate sample probability for t=0
-	t=0;			// when f is true
+	// alpha0: prior for specificity
+	t=0;			// when f is false
 	conditional_claim0=1;	//reset conditional claim probability
 	idx=sid*2;
 	conditional_claim0 = conditional_claim0*
@@ -85,32 +86,35 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
 	  ((double)ctsc(idx,3)+(double)ctsc(idx+1,3)-(double)1+alpha0(sid,0)+alpha0(sid,1));
 	
 	// 2.1 generate sample probability for t=1
-	t=1;			// when f is false
+	// alpha1: prior for recall
+	t=1;			// when f is true
 	conditional_claim1=1;	// reset conditional claim probability
 	idx= expand_source_claim + idx;
 	conditional_claim1=conditional_claim1*
-	  ((double)ctsc(idx+o,3)-(double)1+alpha1(sid,o))/ //equation (2)
+	  ((double)ctsc(idx+o,3)-(double)1+alpha1(sid,1-o))/ //equation (2)
 	  ((double)ctsc(idx,3)+(double)ctsc(idx+1,3)-(double)1+alpha1(sid,0)+alpha1(sid,1));
       }
       
-      probs[0] = beta(f,0)*conditional_claim0;
-      probs[1] = beta(f,1)*conditional_claim1;
+      probs[0] = beta(f,1)*conditional_claim0;
+      probs[1] = beta(f,0)*conditional_claim1;
       
       // 3. sample and update facts
       facts[f]=one_cat_zero_begin(probs);
       
       // 4. update ctsc
-      for(int c = startidx; c < endidx; ++c){
-	sid=claims(c,1);
-	o=claims(c,2);
-	
-	// pre - 1
-	idx=fact_pre*expand_source_claim+sid*2+o;
-	ctsc(idx,3)=ctsc(idx,3)-1;
-	
-	// aft + 1
-	idx=facts[f]*expand_source_claim+sid*2+o;
-	ctsc(idx,3)=ctsc(idx,3)+1;
+      if(facts[f] != fact_pre){
+	for(int c = startidx; c < endidx; ++c){
+	  sid=claims(c,1);
+	  o=claims(c,2);
+	  
+	  // pre - 1
+	  idx=fact_pre*expand_source_claim+sid*2+o;
+	  ctsc(idx,3)=ctsc(idx,3)-1;
+	  
+	  // aft + 1
+	  idx=facts[f]*expand_source_claim+sid*2+o;
+	  ctsc(idx,3)=ctsc(idx,3)+1;
+	}
       }
     }
 
@@ -130,7 +134,6 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
   }
 
 
-  // expand_source_claim
   for(int s = 0; s < nsources; ++s){
     // recall
     idx=expand_source_claim+s*(int)2+1;
@@ -139,11 +142,11 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
     
     // precision
     precision[s] = ((double)ctsc_out[idx]+alpha1(s,1))/
-      ((double)ctsc_out[idx] + (double)ctsc_out[s*(int)2+(int)1] + alpha0(s,1) + alpha1(s,1));
+      ((double)ctsc_out[idx] + (double)ctsc_out[s*(int)2+(int)1] + alpha0(s,0) + alpha1(s,1));
     
-    // fpr
+    // specificity
     idx=s*(int)2;
-    fpr[s] = ((double)ctsc_out[idx]+alpha0(s,0))/
+    specificity[s] = ((double)ctsc_out[idx]+alpha0(s,0))/
       ((double)ctsc_out[idx]+(double)ctsc_out[idx+1]+alpha0(s,0)+ alpha0(s,1));
   }
   
@@ -152,5 +155,5 @@ List truthfinding_binary(IntegerVector facts,IntegerVector fcidx, IntegerMatrix 
 			    Rcpp::Named("sample_size") = sample_size,
 			    Rcpp::Named("recall") = recall,
 			    Rcpp::Named("precision") = precision,
-			    Rcpp::Named("fpr") = fpr);
+			    Rcpp::Named("specificity") = specificity);
 }
