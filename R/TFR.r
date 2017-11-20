@@ -188,4 +188,3 @@ library(reshape2)
 spa <- read.table("~/Downloads/consolidation_spa.csv",header = TRUE,sep = ",",quote = "\"",na.strings = "NA",stringsAsFactors = FALSE)
 spa <- spa[,-1]
 spa <- na.omit(melt(spa,id.vars="item_id"))
-
