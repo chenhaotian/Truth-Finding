@@ -16,15 +16,6 @@
 
 }
 
-## label:
-## e: entity
-## a: attribute
-## s: source
-## o: claim
-## t: truth
-
-## raw data
-rawdb <- unique(data.frame(e=sample(letters,3000,replace = TRUE),a=sample(c("spa","breakfast","iron"),size = 3000,replace = TRUE),s=sample(toupper(letters[1:3]),300,replace = TRUE),stringsAsFactors = FALSE))
 
 checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,ELEMENTCLASSES=NULL,VALUES=NULL){
     ## print(class(prior))
@@ -47,8 +38,17 @@ sourceCpp("src/TFR.cpp")
 ## beta: Fx2 numeric matrix, each row is the beta prior the corresponding fact
 ## alpha0: Sx2 numeric matrix, each row is the beta prior for the corresponding source FPR
 ## alpha1: Sx2 numeric matrix, each row is the beta prior for the corresponding source sensitivity
-TF <- function(rawdb,beta,alpha0,alpha1,burnin,maxit,sample_step){
-    cat("Preparing mappers...")
+
+## model: specify model in use.
+##     mn: each entity has MULTIPLE true attributes, attributes NOT sharing among entities.
+##     sn: each entity has SINGLE true attribute, attributes NOT sharing among entities.
+##     ss: each entity has SINGLE true attribute, attributes SHARING among entities.
+
+## alpha0: , hyper parameter for specificity when model="mn". NULL for model="sn" and "ss"
+## alpha1: hyper parameter for recall when model="mn", hyper parameter for precision when model="sn" and "ss"
+TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0,alpha1,burnin,maxit,sample_step){
+
+    cat("Checking integrity...")
     burnin <- as.integer(burnin)
     maxit <- as.integer(maxit)
     sample_step<- as.integer(sample_step)
@@ -57,22 +57,31 @@ TF <- function(rawdb,beta,alpha0,alpha1,burnin,maxit,sample_step){
     if(!checkprior(rawdb,CLASS = "data.frame",NCOL = 3) | any(duplicated(rawdb))) stop("rawdb must be a data.frame or matrix with 3 columns and no duplicate entries"){
         names(rawdb) <- c("e","a","s")
     }
+    model <- match.arg(model)
+    nentities <- length(unique(rawdb$e))
+    nsourcecs <- length(unique(rawdb$s))
+    nattributes <- ifelse(model=="ss",length(unique(rawdb$a)),1)
+    if((!checkprior(alpha0,CLASS = "matrix",NCOL = 2,NROW=nsourcecs)& model=="mn") |
+       !checkprior(alpha1,CLASS = "matrix",NCOL = 2,NROW=nsourcecs))
+        stop("alpha1/0 should be a numeric matrix of dimension number_of_sources x 2")
+    if((!checkprior(beta,CLASS = "numeric",LENGTH = 2) & model=="mn") |
+       (!checkprior(beta,CLASS = "numeric",LENGTH = 1) & model=="sn") |
+       (!checkprior(beta,CLASS = "numeric",LENGTH = nattributes) & model=="ss"))
+        stop("beta should be a length 2 numberic when model = mn, a length 1 numeric when model = sn, a lengh number_of_attributes vector when model = ss")
+    cat("done.\n")
 
+    cat("Preparing mappers...")
     ## 1. mappers
-    factsmapper <- unique(rawdb[,c("e","a")])
-    factsmapper$fid <- 0L:(nrow(factsmapper)-1L)
+    if(model=="mn"){
+        factsmapper <- unique(rawdb[,c("e","a")])
+        factsmapper$fid <- 0L:(nrow(factsmapper)-1L)
+    }else if(model=="sn"){
+        entities <- unique(rawdb[,"e",drop=FALSE])
+        entities$eid <- 0L:(nentities-1L)
+    }
     sourcesmapper <- unique(rawdb[,c("s")])
     sourcesmapper <- data.frame(s=sourcesmapper,sid=0L:(length(sourcesmapper)-1L),stringsAsFactors = FALSE)
 
-
-    ## integrity check part2
-    if(checkprior(beta,CLASS = "numeric",LENGTH = 1)) beta <- matrix(beta,nrow=nrow(factsmapper),ncol = 2)
-    if(checkprior(alpha0,CLASS = "numeric",LENGTH = 1)) alpha0 <- matrix(alpha0,nrow=nrow(sourcesmapper),ncol = 2)
-    if(checkprior(alpha1,CLASS = "numeric",LENGTH = 1)) alpha1 <- matrix(alpha1,nrow=nrow(sourcesmapper),ncol = 2)
-    if(!checkprior(beta,"matrix",nrow(factsmapper),2)) stop("beta should be of length 1 or a numeric matrix of dimension n.facts x 2")
-    if(!checkprior(alpha0,CLASS="matrix",NROW=nrow(sourcesmapper),NCOL=2) |
-       !checkprior(alpha1,CLASS="matrix",NROW=nrow(sourcesmapper),NCOL=2)) stop("alpha0 or alpha1 should both be of length 1 or a numeric matrix of dimension n.sources x 2")
-    cat("done.\n")
 
     cat("Preparing claims...")
     ## 2. claims
@@ -112,7 +121,7 @@ TF <- function(rawdb,beta,alpha0,alpha1,burnin,maxit,sample_step){
 
     
     cat("Sampling...\n")
-    res <- truthfinding_binary(facts=facts$t,fcidx=fcidx, claims=as.matrix(claims), ctsc=as.matrix(ctsc), beta=beta, alpha0=alpha0, alpha1=alpha1,burnin = burnin, maxit = maxit,sample_step = sample_step)
+    res <- truthfinding_mn(facts=facts$t,fcidx=fcidx, claims=as.matrix(claims), ctsc=as.matrix(ctsc), beta=beta, alpha0=alpha0, alpha1=alpha1,burnin = burnin, maxit = maxit,sample_step = sample_step)
     cat("\n all done \n")
 
     res$ctsc <- ctsc
@@ -122,7 +131,6 @@ TF <- function(rawdb,beta,alpha0,alpha1,burnin,maxit,sample_step){
     return(res)
 }
 
-## match <- crowd[crowd$decision==1,]
 
 load("~/Downloads/crowd_task_am_history")
 
@@ -166,3 +174,14 @@ res <- TF_binary(rawdb = testdata,beta = 1,alpha0 = 0.1,alpha1 = 0.1,burnin = 50
 ## s <- unique(replicate(1000,paste(sample(letters[1:3],2),collapse = "")))
 ## specificities <- runif(length(s),min = 0.5,max = 0.9)
 ## recalls <- runif(length(s),min = 0.5,max = 0.9)
+
+
+## label:
+## e: entity
+## a: attribute
+## s: source
+## o: claim
+## t: truth
+
+## raw data
+rawdb <- unique(data.frame(e=sample(letters,3000,replace = TRUE),a=sample(c("spa","breakfast","iron"),size = 3000,replace = TRUE),s=sample(toupper(letters[1:3]),300,replace = TRUE),stringsAsFactors = FALSE))
