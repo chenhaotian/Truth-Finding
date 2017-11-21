@@ -428,8 +428,6 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
     std::exit(-1);
   }
   NumericVector s_aa_n_claims_out(nsourceattributes*nattributes,(double)0);
-  // NumericVector precision(nsourceattributes,(double)0);
-
   // rawdb:
   // entity attribute source
   
