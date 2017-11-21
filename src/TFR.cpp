@@ -271,32 +271,17 @@ List truthfinding_sn(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
   
   return Rcpp::List::create(Rcpp::Named("e_truths") = e_truths,
 			    Rcpp::Named("s_n_right_out") = s_n_right_out,
+			    Rcpp::Named("s_n_right") = s_n_right,
 			    Rcpp::Named("sample_size") = sample_size,
 			    Rcpp::Named("precision") = precision);
 }
 
 // ss: each entity has SINGLE true attribute, attributes are SHARING among entities.
 // [[Rcpp::export]]
-List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_a_n_right, IntegerVector s_a_n_claims, IntegerMatrix rawdb, NumericVector beta, NumericVector pi, NumericMatrix alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
+List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_n_right, IntegerVector s_n_claims, IntegerMatrix rawdb, NumericVector beta, NumericVector pi, NumericMatrix alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
 
-  // // remove:
-  // e_n_attr;
-  // max_nattributes;
-
-  // // add:
-  // nattributes;
-  // nsources;
-  // pi;
-
-  // // change:
-  // s_n_right = s_a_n_right;
-  // s_n_claims = s_a_n_claims;
-  // length(beta) = nattributes;
-  // dim(alpha1) = (nsources*nattributes) x 2;
-  // sid = idx;
-  int nsourceattributes = nsources*nattributes;
   int startidx=0,endidx=0;	// claim start and end index for each fact
-  int idx=0;   		// tmp variable in locating claims
+  int sid=0;
   int truth_pre=0;
   NumericVector probs(nattributes); // initialize probability vector
   
@@ -304,8 +289,8 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
     std::cout << "length(beta) not equal to number of unique attributes!" << std::endl;
     std::exit(-1);
   }
-  if(alpha1.nrow()!=nsourceattributes){
-    std::cout << "nrow(alpha1) not equal to (number_of_unique_sources) x (number_of_unique_attributes)!" << std::endl;
+  if(alpha1.nrow()!=nsources){
+    std::cout << "nrow(alpha1) not equal to number_of_unique_sources!" << std::endl;
     std::exit(-1);
   }
 
@@ -315,8 +300,8 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
     std::cout << "sample_size = maxit/sample_step - burnin/sample_step <=0!" << std::endl;
     std::exit(-1);
   }
-  NumericVector s_a_n_right_out(nsourceattributes,(double)0);
-  NumericVector precision(nsourceattributes,(double)0);
+  NumericVector s_n_right_out(nsources,(double)0);
+  NumericVector precision(nsources,(double)0);
 
   // rawdb:
   // entity attribute source
@@ -334,34 +319,35 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
       // 2. for each attribute, calculate it's probability of being right
       for(int a = 0; a < nattributes; ++a){
 	// initialize & prior
+	// probs[a] = beta[a];
 	if(truth_pre==a){
-	  probs[a] = (double)(pi[a]-1);
+	  probs[a] = (double)(pi[a]-1)+beta[a];
 	}else{
-	  probs[a] = (double)pi[a];
+	  probs[a] = (double)pi[a]+beta[a];
 	}
 	for(int i = startidx; i < endidx; ++i){
-	  idx=rawdb(i,2)*nattributes+rawdb(i,1);
+	  sid=rawdb(i,2);
 	  if(rawdb(i,1)==a){	       // p(a|claim)
 	    if(rawdb(i,1)==truth_pre){
 	      probs[a] = probs[a]*
-		((double)s_a_n_right[idx]- (double)1 + alpha1(idx,0))/
-		((double)s_a_n_claims[idx]- (double)1 + alpha1(idx,0) + alpha1(idx,0));
+		((double)s_n_right[sid]- (double)1 + alpha1(sid,0))/
+		((double)s_n_claims[sid]- (double)1 + alpha1(sid,0) + alpha1(sid,0));
 	    }else{
 	      probs[a] = probs[a]*
-		((double)s_a_n_right[idx] + alpha1(idx,0))/
-		((double)s_a_n_claims[idx]- (double)1 + alpha1(idx,0) + alpha1(idx,0));
+		((double)s_n_right[sid] + alpha1(sid,0))/
+		((double)s_n_claims[sid]- (double)1 + alpha1(sid,0) + alpha1(sid,0));
 	    }
 	  }else{		       // p(hat(a)|claim)
 	    if(rawdb(i,1)==truth_pre){
 	      probs[a] = probs[a]*
 		((double)1 -
-		 ((double)s_a_n_right[idx]- (double)1 + alpha1(idx,0))/
-		 ((double)s_a_n_claims[idx]- (double)1 + alpha1(idx,0) + alpha1(idx,0)));
+		 ((double)s_n_right[sid]- (double)1 + alpha1(sid,0))/
+		 ((double)s_n_claims[sid]- (double)1 + alpha1(sid,0) + alpha1(sid,0)));
 	    }else{
 	      probs[a] = probs[a]*
 		((double)1 -
-		 ((double)s_a_n_right[idx] + alpha1(idx,0))/
-		 ((double)s_a_n_claims[idx]- (double)1 + alpha1(idx,0) + alpha1(idx,0)));
+		 ((double)s_n_right[sid] + alpha1(sid,0))/
+		 ((double)s_n_claims[sid]- (double)1 + alpha1(sid,0) + alpha1(sid,0)));
 	    }
 	  }
 	}
@@ -374,13 +360,13 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
 	// update pi
 	pi[truth_pre] = pi[truth_pre]-1;
 	pi[e_truths[eid]] = pi[e_truths[eid]]+1;
-	// update s_a_n_right
+	// update s_n_right
 	for(int i = startidx; i < endidx; ++i){
-	  idx=rawdb(i,2)*nattributes+rawdb(i,1);
+	  sid=rawdb(i,2);
 	  if(rawdb(i,1)==truth_pre){ // minus
-	    s_a_n_right[idx] = s_a_n_right[idx] - 1;
+	    s_n_right[sid] = s_n_right[sid] - 1;
 	  }else if(rawdb(i,1)==e_truths[eid]){ // plus
-	    s_a_n_right[idx] = s_a_n_right[idx] + 1;
+	    s_n_right[sid] = s_n_right[sid] + 1;
 	  }
 	}
       }
@@ -394,8 +380,8 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
       // 	e_truths_out[l]
       // 	entities_out[l] = entities_out[l] + entities[l]/(double)sample_size;
       // }
-      for(int s = 0; s < nsourceattributes; ++s){
-	s_a_n_right_out[s] = s_a_n_right_out[s] + (double)s_a_n_right[s] / (double)sample_size;
+      for(int s = 0; s < nsources; ++s){
+	s_n_right_out[s] = s_n_right_out[s] + (double)s_n_right[s] / (double)sample_size;
       }
     }
 
@@ -404,14 +390,111 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
   }
   
   // esitmate source quality
-  for(int s = 0; s < nsourceattributes; ++s){
+  for(int s = 0; s < nsources; ++s){
     // precision
-    precision[s] = ((double)s_a_n_right_out[s]+alpha1(s,0))/
-      ((double)s_a_n_claims[s] + alpha1(s,0) + alpha1(s,1));
+    precision[s] = ((double)s_n_right_out[s]+alpha1(s,0))/
+      ((double)s_n_claims[s] + alpha1(s,0) + alpha1(s,1));
   }
   
   return Rcpp::List::create(Rcpp::Named("e_truths") = e_truths,
-			    Rcpp::Named("s_a_n_right_out") = s_a_n_right_out,
+			    Rcpp::Named("s_n_right_out") = s_n_right_out,
 			    Rcpp::Named("sample_size") = sample_size,
-			    Rcpp::Named("precision") = precision);
+			    Rcpp::Named("precision") = precision,
+			    Rcpp::Named("s_n_right") = s_n_right,
+			    Rcpp::Named("pi") = pi);
+}
+
+// ss with full parameter
+// TO DO:
+// 1. change alpha1 from double to numericmatrix, to support online learning
+// [[Rcpp::export]]
+List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, NumericVector beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
+
+  int nsourceattributes = nsources*nattributes;
+  int startidx=0,endidx=0;	// claim start and end index for each fact
+  int idx1=0,idx2=0;   		// tmp variable in locating claims
+  int truth_pre=0;
+  NumericVector probs(nattributes); // initialize probability vector
+  
+  if(beta.size()!=nattributes){
+    std::cout << "length(beta) not equal to number of unique attributes!" << std::endl;
+    std::exit(-1);
+  }
+  
+  // outputs
+  int sample_size = maxit/sample_step - burnin/sample_step;
+  if(sample_size <=0){
+    std::cout << "sample_size = maxit/sample_step - burnin/sample_step <=0!" << std::endl;
+    std::exit(-1);
+  }
+  NumericVector s_aa_n_claims_out(nsourceattributes*nattributes,(double)0);
+  // NumericVector precision(nsourceattributes,(double)0);
+
+  // rawdb:
+  // entity attribute source
+  
+  // main gibbs loop
+  int it = 0;
+  while(it < maxit){
+    // 1. for each entity ...
+    for(int eid = 0; eid < nentities; ++eid){
+      // initialize indexes
+      startidx=ecidx[eid];
+      endidx=ecidx[eid+1];
+      truth_pre=e_truths[eid];
+
+      // 2. for each attribute, calculate it's probability
+      for(int a = 0; a < nattributes; ++a){
+	// initialize & prior
+	if(truth_pre==a){
+	  probs[a] = (double)(pi[a]-1)+beta[a];
+	}else{
+	  probs[a] = (double)pi[a]+beta[a];
+	}
+	for(int i = startidx; i < endidx; ++i){
+	  idx1=rawdb(i,2)*nattributes*nattributes+a*nattributes+rawdb(i,1);
+	  idx2=rawdb(i,2)*nattributes+a;
+	  if(truth_pre==a){
+	    probs[a] = probs[a]*
+	      ((double)s_aa_n_claims[idx1]- (double)1 + alpha1)/
+	      ((double)s_a_n_claims[idx2]- (double)1 + (double)nattributes*alpha1);
+	  }else{
+	    probs[a] = probs[a]*
+	      ((double)s_aa_n_claims[idx1] + alpha1)/
+	      ((double)s_a_n_claims[idx2] + (double)nattributes*alpha1);
+	  }
+	}
+      }
+
+      e_truths[eid]=one_cat_zero_begin(probs);
+      
+      // update
+      if(truth_pre != e_truths[eid]){
+	// update pi
+	pi[truth_pre] = pi[truth_pre]-1;
+	pi[e_truths[eid]] = pi[e_truths[eid]]+1;
+	// update s_aa_n_claims
+	for(int i = startidx; i < endidx; ++i){
+	  idx1=rawdb(i,2)*nattributes*nattributes+rawdb(i,1);
+	  idx2=rawdb(i,2)*nattributes;
+	  s_aa_n_claims[idx1+truth_pre*nattributes] = s_aa_n_claims[idx1+truth_pre*nattributes]-1;
+	  s_a_n_claims[idx2+truth_pre] = s_a_n_claims[idx2+truth_pre]-1;
+	  s_aa_n_claims[idx1+e_truths[eid]*nattributes] = s_aa_n_claims[idx1+e_truths[eid]*nattributes]+1;
+	  s_a_n_claims[idx2+e_truths[eid]] = s_a_n_claims[idx2+e_truths[eid]]+1;
+	}
+      }
+      
+    }
+    
+    // sample output
+    it=it+1;
+    
+    printProgress((double)it/maxit);
+    
+  }
+  
+  return Rcpp::List::create(Rcpp::Named("e_truths") = e_truths,
+			    Rcpp::Named("sample_size") = sample_size,
+			    Rcpp::Named("s_aa_n_claims") = s_aa_n_claims,
+			    Rcpp::Named("pi") = pi);
 }
