@@ -411,7 +411,7 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
 // 1. change alpha1 from double to numericmatrix, to support online learning
 // 2. change beta from double to numericvector of length nattributes
 // [[Rcpp::export]]
-List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, double beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step, bool considerpi){
+List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, double beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
 
   int nsourceattributes = nsources*nattributes;
   int startidx=0,endidx=0;	// claim start and end index for each fact
@@ -433,6 +433,7 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
   NumericVector s_aa_n_claims_out(nsourceattributes*nattributes,(double)0);
   // rawdb:
   // entity attribute source
+  NumericVector log_likelihood(sample_size,(double)0);
   
   // main gibbs loop
   int it = 0;
@@ -447,29 +448,24 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
       // 2. for each attribute, calculate it's probability
       for(int a = 0; a < nattributes; ++a){
 	// initialize & prior
-	if(considerpi){
-	  if(truth_pre==a){
-	    // probs[a] = (double)(pi[a]-1)+beta[a];
-	    probs[a] = (double)(pi[a]-1)+beta;
-	  }else{
-	    // probs[a] = (double)pi[a]+beta[a];
-	    probs[a] = (double)pi[a]+beta;
-	  }
+	if(truth_pre==a){
+	  // probs[a] = (double)(pi[a]-1)+beta[a];
+	  probs[a] = (double)(pi[a]-1)+beta;
 	}else{
-	  // probs[a] = beta[a];
-	  probs[a] = beta;
+	  // probs[a] = (double)pi[a]+beta[a];
+	  probs[a] = (double)pi[a]+beta;
 	}
 	for(int i = startidx; i < endidx; ++i){
 	  idx1=rawdb(i,2)*nattributes*nattributes+a*nattributes+rawdb(i,1);
 	  idx2=rawdb(i,2)*nattributes+a;
 	  if(truth_pre==a){
 	    probs[a] = probs[a]*
-	      ((double)s_aa_n_claims[idx1]- (double)1 + alpha1)/
-	      ((double)s_a_n_claims[idx2]- (double)1 + (double)nattributes*alpha1);
+	      ((double)s_aa_n_claims[idx1] - (double)1 + alpha1)/
+	      ((double)s_a_n_claims[idx2] - (double)1 + (double)nattributes*alpha1);
 	  }else{
 	    probs[a] = probs[a]*
 	      ((double)s_aa_n_claims[idx1] + alpha1)/
-	      ((double)s_a_n_claims[idx2] + (double)nattributes*alpha1);
+	      ((double)s_a_n_claims[idx2] - (double)1 + (double)nattributes*alpha1);
 	  }
 	}
       }
@@ -506,3 +502,12 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
 			    Rcpp::Named("s_aa_n_claims") = s_aa_n_claims,
 			    Rcpp::Named("pi") = pi);
 }
+
+// p(t1|a1,a2) = p(a1|t1,a2)*p(t1|a2) / p(a1|a2)
+//             = p(a1|t1)*p(t1|a2) / p(a1)
+//             = p(a1|t1)*p(a2|t1)*p(t1)/ p(a2) / p(a1)
+//             = p(a1|t1)*p(a2|t1)*p(t1)/ p(a2) / p(a1)
+//             ~ p(a1|t1)*p(a2|t1)*p(t1)
+// ...
+// p(t1|a1,a2,...,an) ~ p(a1|t1)*p(a2|t1)*...*p(an|t1)*p(t1)
+

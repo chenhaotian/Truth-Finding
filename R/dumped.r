@@ -1,10 +1,11 @@
-res$s_aa_n_claims$a_truth <- attributesmapper$a[match(res$s_aa_n_claims$a_truth,attributesmapper$aid)]
-res$s_aa_n_claims$a <- attributesmapper$a[match(res$s_aa_n_claims$a,attributesmapper$aid)]
-
 load("~/Downloads/tmpdata")
 rawdb <- rawdb[rawdb$a!=4,]
 
-res <- TF(rawdb,"ss",beta  = 1,alpha1 = 1,burnin = 500,maxit = 10000,sample_step = 50,considerpi = TRUE)
+library(Rcpp)
+source("R/TFR.r")
+sourceCpp("src/TFR.cpp")
+
+res <- TF(rawdb,"ss",beta  = 1,alpha1 = 1,burnin = 500,maxit = 10000,sample_step = 50)
 
 xxx <- plyr::ddply(rawdb,"e",function(d){
     tmp <- table(d$a)
@@ -16,12 +17,14 @@ xxx2 <- res$rawdb_original
 
 xxx2 <- xxx2[order(xxx2$e),]
 xxx <- xxx[order(xxx$e),]
-
-##' @title \%IN\%
-##' @description data.fram version of %in%.
-##' @return a logical vector of length nrow(df1).
+tmp <- data.frame(t=xxx2$e_truth,m=xxx$mj)
 
 
-##' @title checkprior
-##' @description a wrapper function in checking parameters.
-##' @return a logical value.
+## precision
+tmp2 <- plyr::ddply(res$s_aa_n_claims,"s",function(d){
+    data.frame(s=d$s[1],rate=sum(d$count[d$a_truth==d$a]) / sum(d$count),cnt=sum(d$count))
+})
+
+tmp2 <- tmp2[order(tmp2$cnt),]
+
+plot(tmp2$rate,type = "l")

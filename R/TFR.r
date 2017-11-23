@@ -56,7 +56,7 @@ checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,E
 ##'   #nothing here yet
 ##' }
 ##' @export
-TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=500L,maxit=3000L,sample_step=100L,considerpi=TRUE){
+TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=500L,maxit=3000L,sample_step=100L){
 
     cat("Checking integrity...")
     burnin <- as.integer(burnin)
@@ -80,7 +80,7 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
     ##    (!checkprior(beta,CLASS = "numeric",LENGTH = 1L) & model=="sn") |
     ##    (!checkprior(beta,CLASS = "numeric",LENGTH = nattributes) & model=="ss"))
     ##     stop("beta should be a length 2 numberic when model = mn, a length 1 numeric when model = sn, a lengh number_of_attributes vector when model = ss")
-    ## cat("done.\n")
+    cat("done.\n")
 
     sourcesmapper <- unique(rawdb[,"s",drop=FALSE])
     sourcesmapper$sid <- 0L:(nsources-1L)
@@ -127,7 +127,7 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
         ctsc <- as.matrix(ctsc)
         gc(verbose = FALSE)
         
-        cat("Sampling...\n")
+        cat("Sampling...\n\n")
         res <- truthfinding_mn(facts=facts$t,fcidx=fcidx, claims=claims, ctsc=ctsc, beta=beta, alpha0=alpha0, alpha1=alpha1,burnin = burnin, maxit = maxit,sample_step = sample_step)
         cat("\n all done \n")
         
@@ -182,10 +182,10 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
         else if(model=="ss"){
             ## random initial value will lead to varies local maxima, here use majority rules instead.
             rawdb$a_truth <- unname(do.call(c,lapply(split(rawdb$a,rawdb$e),function(l){
-                tmp <- table(l)
-                rep(as.integer(names(tmp)[which.max(tmp)]),length(l))
+                rep(sample(0:(nattributes-1),1),length(l))
+                ## tmp <- table(l)
+                ## rep(as.integer(names(tmp)[which.max(tmp)]),length(l))
             })))
-
             e_truths <- rawdb$a_truth[!duplicated(rawdb$e)]
 
             
@@ -211,7 +211,7 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
 
             rawdb <- as.matrix(rawdb[,-4])
             
-            res <- truthfinding_ss_fullpar(ecidx = ecidx,e_truths = e_truths, s_aa_n_claims = s_aa_n_claims$count, s_a_n_claims = s_a_n_claims$count,rawdb = rawdb,beta = beta, pi = pi,alpha1 = alpha1, nattributes = nattributes, nsources = nsources, nentities = nentities, burnin = burnin, maxit = maxit,sample_step = sample_step,considerpi = considerpi)
+            res <- truthfinding_ss_fullpar(ecidx = ecidx,e_truths = e_truths, s_aa_n_claims = s_aa_n_claims$count, s_a_n_claims = s_a_n_claims$count,rawdb = rawdb,beta = beta, pi = pi,alpha1 = alpha1, nattributes = nattributes, nsources = nsources, nentities = nentities, burnin = burnin, maxit = maxit,sample_step = sample_step)
         }
         cat("\n all done \n")
     }
