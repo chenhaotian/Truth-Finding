@@ -9,7 +9,7 @@ Webside A is an "information source", person B is an "entity" and "has a tank pa
 | ------------- |:-------------:| -----:|
 | Person B      | Has a tank paring in the garage | Website A |
 
-In a typical truth finding scenarios, there are be multiple information providers claiming that multiple entities have some kind of attributes, and among the claims there may exist conflicts. 
+In a typical truth finding scenarios, there may be multiple information providers providing claims about multiple entities having some kind of attributes, and there may exist conflicts between these claims.
 
 Generally there are three types of truth finding problems.
 + `Some sources claiming that a group of people's gender are either male or not male` , here all soures' claimings are about the same set of attributes {"male", "mot male"}, that means **attribute labels are sharing among entities,** and each person can not have "male" and "not male" attributes at the same time, that means **each entity can only have one true attribute.**
@@ -36,6 +36,11 @@ args(TF)
 	+ sn: each entity can only have one true attribute, attribute label in each entity can be unique.
 	+ mn: each entity can have multiple attributes.
 
+Example:
+```R
+res <- TF(rawdb,model="ss")
+names(res)
+```
 
 ## Reference
 1. [Machine learning: a probabilistic perspective](http://cds.cern.ch/record/1981503)
