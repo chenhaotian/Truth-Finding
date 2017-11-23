@@ -322,8 +322,10 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
 	// probs[a] = beta[a];
 	if(truth_pre==a){
 	  probs[a] = (double)(pi[a]-1)+beta[a];
+	  // probs[a] = 1;
 	}else{
 	  probs[a] = (double)pi[a]+beta[a];
+	  // probs[a] = 1;
 	}
 	for(int i = startidx; i < endidx; ++i){
 	  sid=rawdb(i,2);
@@ -407,8 +409,9 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
 // ss with full parameter
 // TO DO:
 // 1. change alpha1 from double to numericmatrix, to support online learning
+// 2. change beta from double to numericvector of length nattributes
 // [[Rcpp::export]]
-List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, NumericVector beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
+List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, double beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step, bool considerpi){
 
   int nsourceattributes = nsources*nattributes;
   int startidx=0,endidx=0;	// claim start and end index for each fact
@@ -416,10 +419,10 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
   int truth_pre=0;
   NumericVector probs(nattributes); // initialize probability vector
   
-  if(beta.size()!=nattributes){
-    std::cout << "length(beta) not equal to number of unique attributes!" << std::endl;
-    std::exit(-1);
-  }
+  // if(beta.size()!=nattributes){
+  //   std::cout << "length(beta) not equal to number of unique attributes!" << std::endl;
+  //   std::exit(-1);
+  // }
   
   // outputs
   int sample_size = maxit/sample_step - burnin/sample_step;
@@ -444,10 +447,17 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
       // 2. for each attribute, calculate it's probability
       for(int a = 0; a < nattributes; ++a){
 	// initialize & prior
-	if(truth_pre==a){
-	  probs[a] = (double)(pi[a]-1)+beta[a];
+	if(considerpi){
+	  if(truth_pre==a){
+	    // probs[a] = (double)(pi[a]-1)+beta[a];
+	    probs[a] = (double)(pi[a]-1)+beta;
+	  }else{
+	    // probs[a] = (double)pi[a]+beta[a];
+	    probs[a] = (double)pi[a]+beta;
+	  }
 	}else{
-	  probs[a] = (double)pi[a]+beta[a];
+	  // probs[a] = beta[a];
+	  probs[a] = beta;
 	}
 	for(int i = startidx; i < endidx; ++i){
 	  idx1=rawdb(i,2)*nattributes*nattributes+a*nattributes+rawdb(i,1);

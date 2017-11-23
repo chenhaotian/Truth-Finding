@@ -1,5 +1,6 @@
-## data.fram version of %in%
-## returns a logical vector indicating if there is a match or not for each ROW of the left operand.
+##' @title %IN%
+##' @description data.fram version of %in%.
+##' @return a logical vector of length nrow(df1).
 `%IN%` <- function(df1,df2){
     if( !is(df1,"data.frame") | !is(df2,"data.frame")){
         stop("inputs must be data.frames")
@@ -16,6 +17,9 @@
 
 }
 
+##' @title checkprior
+##' @description a wrapper function in checking parameters.
+##' @return a logical value.
 checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,ELEMENTCLASSES=NULL,VALUES=NULL){
     ## print(class(prior))
     is(prior,CLASS) &
@@ -26,10 +30,33 @@ checkprior <- function(prior,CLASS=character(),NROW=NULL,NCOL=NULL,LENGTH=NULL,E
     ifelse(!is.null(VALUES),all(prior %in% VALUES), TRUE)
 }
 
-library(Rcpp)
-sourceCpp("src/TFR.cpp")
-
-TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0=NULL,alpha1,burnin,maxit,sample_step){
+##' @title TF
+##' @description Truth finding algorithms with Bayes nets.
+##' @details return a data.frame of current queuing orders, each row of
+##' the data.frame representing an order, queryorder will return all of the
+##' queuing orders if orderid is NULL. when there is no queuing orders,
+##' queryorder will return a data.frame with 0 rows.
+##' @param rawdb data.frame with three columns, representing "entity", "attribute",
+##' "information source" respectively.
+##' @param model character, specifying the model to be used
+##' "ss", each entity can only have one true attribute, attribute labels are sharing
+##' among entities.
+##' "sn", each entity can only have one true attribute, attribute label in each entity can be unique.
+##' "mn": each entity can have multiple attributes.
+##' @param beta numeric, hyper parameter for attribute distribution, default 1
+##' @param alpha0 numeric, hyper parameter for false positive rate in model "mn"
+##' @param alpha1 numeric, hyper parameter for source recall rate.
+##' @param burnin integer, number of burn-in samples.
+##' @param maxit integer, number of iterations.
+##' @param sample_step integer, sample step length in posterior estimation.
+##' @param considerpi logical, 
+##' @return a list
+##' @examples
+##' \dontrun{
+##'   #nothing here yet
+##' }
+##' @export
+TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=500L,maxit=3000L,sample_step=100L,considerpi=TRUE){
 
     cat("Checking integrity...")
     burnin <- as.integer(burnin)
@@ -45,15 +72,15 @@ TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0=NULL,alpha1,burnin,maxi
     model <- match.arg(model)
     nentities <- length(unique(rawdb$e))
     nsources <- length(unique(rawdb$s))
-    nattributes <- ifelse(model=="ss",length(unique(rawdb$a)),1L)
+    nattributes <- length(unique(rawdb$a))
     if(nattributes<2 & model=="ss") stop("there need to be at least two unique attributes in rawdb")
     ## if(!checkprior(alpha0,CLASS = "matrix",NCOL = 2L,NROW=nsources))
     ##     stop("alpha1/0 should be a numeric matrix of dimension number_of_sources x 2")
-    if((!checkprior(beta,CLASS = "numeric",LENGTH = 2L) & model=="mn") |
-       (!checkprior(beta,CLASS = "numeric",LENGTH = 1L) & model=="sn") |
-       (!checkprior(beta,CLASS = "numeric",LENGTH = nattributes) & model=="ss"))
-        stop("beta should be a length 2 numberic when model = mn, a length 1 numeric when model = sn, a lengh number_of_attributes vector when model = ss")
-    cat("done.\n")
+    ## if((!checkprior(beta,CLASS = "numeric",LENGTH = 2L) & model=="mn") |
+    ##    (!checkprior(beta,CLASS = "numeric",LENGTH = 1L) & model=="sn") |
+    ##    (!checkprior(beta,CLASS = "numeric",LENGTH = nattributes) & model=="ss"))
+    ##     stop("beta should be a length 2 numberic when model = mn, a length 1 numeric when model = sn, a lengh number_of_attributes vector when model = ss")
+    ## cat("done.\n")
 
     sourcesmapper <- unique(rawdb[,"s",drop=FALSE])
     sourcesmapper$sid <- 0L:(nsources-1L)
@@ -153,10 +180,14 @@ TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0=NULL,alpha1,burnin,maxi
             res <- truthfinding_sn(ecidx = ecidx,e_truths = e_truths,e_n_attr = e_n_attr,s_n_right = s_n_right, s_n_claims = s_n_claims,rawdb = rawdb,beta = beta, alpha1 = alpha1, max_nattributes = max_nattributes, burnin = burnin, maxit = maxit,sample_step = sample_step)
         }
         else if(model=="ss"){
-            initial_probs <- as.numeric(table(rawdb$a))
-            e_truths <- replicate(nentities,one_cat_zero_begin(initial_probs))
-            
-            rawdb$a_truth <- e_truths[match(rawdb$e,entities$eid)]
+            ## random initial value will lead to varies local maxima, here use majority rules instead.
+            rawdb$a_truth <- unname(do.call(c,lapply(split(rawdb$a,rawdb$e),function(l){
+                tmp <- table(l)
+                rep(as.integer(names(tmp)[which.max(tmp)]),length(l))
+            })))
+
+            e_truths <- rawdb$a_truth[!duplicated(rawdb$e)]
+
             
             ## nsouce x nattributes matrix
             s_a_n_claims <- expand.grid(0L:(nsources-1L),0L:(nattributes-1L))
@@ -165,14 +196,6 @@ TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0=NULL,alpha1,burnin,maxi
             s_a_n_claims$e[is.na(s_a_n_claims$e)] <- 0L
             names(s_a_n_claims)[3] <- "count"
             s_a_n_claims <- s_a_n_claims[order(s_a_n_claims$s,s_a_n_claims$a_truth),] #claims of each source(some claims may be too few)
-
-            ## ## nentities x nsource matrix
-            ## e_s_n_claims <- expand.grid(0L:(nentities-1L),0L:(nsources-1L))
-            ## names(e_s_n_claims) <- c("e","s")
-            ## e_s_n_claims <- merge(e_s_n_claims,aggregate(a~e+s,data = rawdb,FUN = length),all.x = TRUE,sort = FALSE)
-            ## e_s_n_claims$e[is.na(e_s_n_claims$e)] <- 0L
-            ## names(e_s_n_claims)[3] <- "count"
-            ## e_s_n_claims <- e_s_n_claims[order(e_s_n_claims$s,e_s_n_claims$a_truth),]
 
             ## nsource x nattributes x nattributes array
             s_aa_n_claims <- expand.grid(0L:(nsources-1L),0L:(nattributes-1L),0L:(nattributes-1L))
@@ -188,36 +211,30 @@ TF <- function(rawdb,model=c("mn","sn","ss"),beta,alpha0=NULL,alpha1,burnin,maxi
 
             rawdb <- as.matrix(rawdb[,-4])
             
-            res <- truthfinding_ss_fullpar(ecidx = ecidx,e_truths = e_truths, s_aa_n_claims = s_aa_n_claims$count, s_a_n_claims = s_a_n_claims$count,rawdb = rawdb,beta = beta, pi = pi,alpha1 = alpha1, nattributes = nattributes, nsources = nsources, nentities = nentities, burnin = burnin, maxit = maxit,sample_step = sample_step)
-            
+            res <- truthfinding_ss_fullpar(ecidx = ecidx,e_truths = e_truths, s_aa_n_claims = s_aa_n_claims$count, s_a_n_claims = s_a_n_claims$count,rawdb = rawdb,beta = beta, pi = pi,alpha1 = alpha1, nattributes = nattributes, nsources = nsources, nentities = nentities, burnin = burnin, maxit = maxit,sample_step = sample_step,considerpi = considerpi)
         }
         cat("\n all done \n")
     }
 
-    rawdb_original$e_truth <- res$e_truths[match(rawdb_original$e,entities$e)]
-    rawdb_original$e_truth <- attributesmapper$a[match(rawdb_original$e_truth,attributesmapper$aid)]
-    res$rawdb_original <- rawdb_original
-    names(res$pi) <- as.character(attributesmapper$a)
-
-    s_aa_n_claims$count <- res$s_aa_n_claims
-    s_aa_n_claims$a_truth <- attributesmapper$a[match(s_aa_n_claims$a_truth,attributesmapper$aid)]
-    s_aa_n_claims$a <- attributesmapper$a[match(s_aa_n_claims$a,attributesmapper$aid)]
-    res$s_aa_n_claims <- s_aa_n_claims
-
-    ## res$ctsc <- ctsc
-    ## res$claims <- claims
-    ## res$factsmapper <- factsmapper
-    ## res$sourcesmapper <- sourcesmapper
+    if(model=="ss"){
+        rawdb_original$e_truth <- res$e_truths[match(rawdb_original$e,entities$e)]
+        rawdb_original$e_truth <- attributesmapper$a[match(rawdb_original$e_truth,attributesmapper$aid)]
+        res$rawdb_original <- rawdb_original
+        names(res$pi) <- as.character(attributesmapper$a)
+        
+        s_aa_n_claims$count <- res$s_aa_n_claims
+        s_aa_n_claims$a_truth <- attributesmapper$a[match(s_aa_n_claims$a_truth,attributesmapper$aid)]
+        s_aa_n_claims$a <- attributesmapper$a[match(s_aa_n_claims$a,attributesmapper$aid)]
+        res$s_aa_n_claims <- s_aa_n_claims
+    }
+    else if(model=="mn"){
+        res$ctsc <- ctsc
+        res$claims <- claims
+        res$factsmapper <- factsmapper
+        res$sourcesmapper <- sourcesmapper
+    }
+    
     return(res)
 }
 
-attributesmapper <- data.frame(a=c(2,3,1,0),aid=0:3)
 
-xxx2 <- ddply(xxx,"e",function(d){
-    tmp <- table(d$a)
-    d$mj <- as.integer(names(tmp)[which.max(tmp)])
-    return(d)
-},.progress = "text")
-
-res$s_aa_n_claims$a_truth <- attributesmapper$a[match(res$s_aa_n_claims$a_truth,attributesmapper$aid)]
-res$s_aa_n_claims$a <- attributesmapper$a[match(res$s_aa_n_claims$a,attributesmapper$aid)]
