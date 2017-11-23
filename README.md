@@ -11,9 +11,9 @@ Webside A is an "information source", person B is an "entity" and "has a tank pa
 | ------------- |:-------------:| -----:|
 | Person B      | Has a tank paring in the garage | Website A |
 
-In a typical truth finding scenarios, there may be multiple information providers providing claims about multiple entities having some kind of attributes, and there may exist conflicts between these claims. The model here is to help find the hidden truth in all three types of scenarios, meanwhile calculate the credibilities of the information sources.
+In a typical truth finding scenarios, there may be multiple information providers providing claims about multiple entities having some kind of attributes, and there may exist conflicts between these claims. The model here is to help find the hidden truth, meanwhile calculate the credibilities of the information sources.
 
-Generally there are three types of truth finding problems, here list their definition by examples:
+Generally there are three types of truth finding scenarios, here list their definitions by examples:
 + example1: `Some sources claiming that a group of people's gender are either male or not male` , here all soures' claimings are about the same set of attributes {"male", "mot male"}, that means **attribute labels are sharing among entities,** and each person can not have "male" and "not male" attributes at the same time, that means **each entity can only have one true attribute.**
 + example2: `Some sources claiming the one most favourite thing of a group of people` , here the attributes are not fixed, it can be anything, so **attribute labels are not sharing among entities,** meanwhile each person has only one most favourite thing, so **each entity can only have one true attribute.**
 + example3: `Some sources claiming the cast of some of movies` , cast can be any combination of any person's name, the size of the attribute set an unlimited, so **attribute labels are not sharing among entities,** while each movie can have multiple actors and actresses, so **each entity can have multiple attributes.**  (ref[2](https://arxiv.org/pdf/1203.0058.pdf) )
@@ -39,7 +39,7 @@ args(TF)
 
 Example:
 ```R
-## read the rawdb interested and run the following code to find latent truth with model="ss":
+## read your own rawdb, run the following code to find latent truth with model="ss":
 res <- TF(rawdb,model="ss")
 ```
 
