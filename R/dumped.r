@@ -16,3 +16,12 @@ xxx2 <- res$rawdb_original
 
 xxx2 <- xxx2[order(xxx2$e),]
 xxx <- xxx[order(xxx$e),]
+
+##' @title \%IN\%
+##' @description data.fram version of %in%.
+##' @return a logical vector of length nrow(df1).
+
+
+##' @title checkprior
+##' @description a wrapper function in checking parameters.
+##' @return a logical value.
