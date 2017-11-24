@@ -413,7 +413,7 @@ List truthfinding_ss(IntegerVector ecidx, IntegerVector e_truths, IntegerVector 
 // [[Rcpp::export]]
 List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, IntegerVector s_aa_n_claims, IntegerVector s_a_n_claims, IntegerMatrix rawdb, double beta, NumericVector pi, double alpha1,int nattributes, int nsources, int nentities, int burnin, int maxit, int sample_step){
 
-  int nsourceattributes = nsources*nattributes;
+  int nsourceattributes = nsources*nattributes*nattributes;
   int startidx=0,endidx=0;	// claim start and end index for each fact
   int idx1=0,idx2=0;   		// tmp variable in locating claims
   int truth_pre=0;
@@ -430,10 +430,13 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
     std::cout << "sample_size = maxit/sample_step - burnin/sample_step <=0!" << std::endl;
     std::exit(-1);
   }
-  NumericVector s_aa_n_claims_out(nsourceattributes*nattributes,(double)0);
+  NumericVector s_aa_n_claims_out(nsourceattributes,(double)0);
+  NumericVector log_likelihood(sample_size,(double)0);
+  NumericMatrix e_truths_out(nentities,nattributes); // matrix with nentities rows and nattributes columns, filled with 0s.
+
   // rawdb:
   // entity attribute source
-  NumericVector log_likelihood(sample_size,(double)0);
+
   
   // main gibbs loop
   int it = 0;
@@ -492,14 +495,24 @@ List truthfinding_ss_fullpar(IntegerVector ecidx, IntegerVector e_truths, Intege
     
     // sample output
     it=it+1;
+    if((it > burnin) & (it % sample_step == 0)){
+      for(int l = 0; l < nentities; ++l){
+	e_truths_out(l,e_truths[l]) = e_truths_out(l,e_truths[l])+1;
+      }
+      for(int l = 0; l < nsourceattributes; ++l){
+	s_aa_n_claims_out[l] = s_aa_n_claims_out[l] + (double)s_aa_n_claims[l]/(double)sample_size;
+      }
+    }
     
     printProgress((double)it/maxit);
     
   }
   
   return Rcpp::List::create(Rcpp::Named("e_truths") = e_truths,
+			    Rcpp::Named("e_truths_out") = e_truths_out,
 			    Rcpp::Named("sample_size") = sample_size,
 			    Rcpp::Named("s_aa_n_claims") = s_aa_n_claims,
+			    Rcpp::Named("s_aa_n_claims_out") = s_aa_n_claims_out,
 			    Rcpp::Named("pi") = pi);
 }
 

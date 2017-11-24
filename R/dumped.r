@@ -5,7 +5,7 @@ library(Rcpp)
 source("R/TFR.r")
 sourceCpp("src/TFR.cpp")
 
-res <- TF(rawdb,"ss",beta  = 1,alpha1 = 1,burnin = 500,maxit = 20000,sample_step = 50)
+res <- TF(rawdb,"ss",beta  = 1,alpha1 = 1,burnin = 500,maxit = 5000,sample_step = 50)
 
 xxx <- plyr::ddply(rawdb,"e",function(d){
     tmp <- table(d$a)

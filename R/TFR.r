@@ -217,14 +217,22 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
     }
 
     if(model=="ss"){
-        rawdb_original$e_truth <- res$e_truths[match(rawdb_original$e,entities$e)]
+        e_truths <- apply(res$e_truths_out,MARGIN = 1,function(l){
+            which.max(l)-1
+        })
+        e_truths_prob <- apply(res$e_truths_out,MARGIN = 1,function(l){
+            max(l)/sum(l)
+        })
+        rawdb_original$e_truth <- e_truths[match(rawdb_original$e,entities$e)]
         rawdb_original$e_truth <- attributesmapper$a[match(rawdb_original$e_truth,attributesmapper$aid)]
+        rawdb_original$e_truth_prob <- e_truths_prob[match(rawdb_original$e,entities$e)]
         res$rawdb_original <- rawdb_original
         names(res$pi) <- as.character(attributesmapper$a)
         
         s_aa_n_claims$count <- res$s_aa_n_claims
         s_aa_n_claims$a_truth <- attributesmapper$a[match(s_aa_n_claims$a_truth,attributesmapper$aid)]
         s_aa_n_claims$a <- attributesmapper$a[match(s_aa_n_claims$a,attributesmapper$aid)]
+        s_aa_n_claims$s <- sourcesmapper$s[match(s_aa_n_claims$s,sourcesmapper$sid)]
         res$s_aa_n_claims <- s_aa_n_claims
     }
     else if(model=="mn"){
