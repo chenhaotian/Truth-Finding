@@ -3,7 +3,7 @@ Find hidden truth from conflicting information sources.
 
 ## Illustrations
 
-=="Website A claims that person B has a tank parking in the garage."==
+**"Website A claims that person B has a tank parking in the garage."**
 
 Website A is an "information source", person B is an "entity" and "has a tank parking in the garage" is an "attribute", they together form a claim:
 
@@ -11,7 +11,7 @@ Website A is an "information source", person B is an "entity" and "has a tank pa
 | ------------- |:-------------:| -----:|
 | Person B      | Has a tank paring in the garage | Website A |
 
-In a typical truth finding scenarios, there may be multiple information sources providing claims about multiple entities having some kind of attributes, and there may exist conflicts between these claims. The model is to help finding the hidden truths, meanwhile calculate the credibilities of information sources.
+In typical truth finding scenarios, there may be multiple information sources providing claims about multiple entities having some kind of attributes, and there may exist conflicts between these claims. This model is to help finding the hidden truths, meanwhile calculate the credibilities of information sources.
 
 Generally there are three types of truth finding scenarios:
 + **S**ingle true attribute and **S**haring attributes(**SS**): `M sources claiming that N people's gender are either male or not male` , in this example all sources' claims are about the same set of attributes, which is {"male", "mot male"}, that means **attribute labels are sharing among entities,** moreover, each person can not be "male" and "not male" at the same time, suggesting that **each entity can only have one true attribute.** 
@@ -39,7 +39,7 @@ args(TF)
 
 Example:
 ```R
-## read your own rawdb as a three column data.frame, then run the following code to find latent truths with model="ss":
+## read your own rawdb as a three column data.frame, then run the following code to find latent truths via model="ss":
 res <- TF(rawdb,model="ss")
 ```
 
