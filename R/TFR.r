@@ -180,11 +180,11 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
             res <- truthfinding_sn(ecidx = ecidx,e_truths = e_truths,e_n_attr = e_n_attr,s_n_right = s_n_right, s_n_claims = s_n_claims,rawdb = rawdb,beta = beta, alpha1 = alpha1, max_nattributes = max_nattributes, burnin = burnin, maxit = maxit,sample_step = sample_step)
         }
         else if(model=="ss"){
-            ## random initial value will lead to varies local maxima, here use majority rules instead.
+            ## random initial value can also converge but will take much longer time, here use majority rule to set initial values to speed up.
             rawdb$a_truth <- unname(do.call(c,lapply(split(rawdb$a,rawdb$e),function(l){
-                rep(sample(0:(nattributes-1),1),length(l))
-                ## tmp <- table(l)
-                ## rep(as.integer(names(tmp)[which.max(tmp)]),length(l))
+                ## rep(sample(0:(nattributes-1),1),length(l))
+                tmp <- table(l)
+                rep(as.integer(names(tmp)[which.max(tmp)]),length(l))
             })))
             e_truths <- rawdb$a_truth[!duplicated(rawdb$e)]
 
