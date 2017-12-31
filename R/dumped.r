@@ -32,4 +32,14 @@ tmp2 <- plyr::ddply(res$s_aa_n_claims,"s",function(d){
 
 tmp2 <- tmp2[order(tmp2$cnt),]
 
-plot(tmp2$rate,type = "l")
+plot(tmp2$cnt,tmp2$rate,type = "l")
+
+
+table(res$rawdb_original$e_truth[res$rawdb_original$e_truth_prob<0.9])/length(res$rawdb_original$e_truth[res$rawdb_original$e_truth_prob<0.9])
+
+table(res$rawdb_original$e_truth[res$rawdb_original$e_truth_prob>=0.9])/length(res$rawdb_original$e_truth[res$rawdb_original$e_truth_prob>=0.9])
+
+93.7
+97.5
+75.0
+78.0

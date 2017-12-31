@@ -229,7 +229,8 @@ TF <- function(rawdb,model=c("ss","sn","mn"),beta=1,alpha0=NULL,alpha1=1,burnin=
         res$rawdb_original <- rawdb_original
         names(res$pi) <- as.character(attributesmapper$a)
         
-        s_aa_n_claims$count <- res$s_aa_n_claims
+        s_aa_n_claims$last_count <- res$s_aa_n_claims
+        s_aa_n_claims$avg_count <- res$s_aa_n_claims_out
         s_aa_n_claims$a_truth <- attributesmapper$a[match(s_aa_n_claims$a_truth,attributesmapper$aid)]
         s_aa_n_claims$a <- attributesmapper$a[match(s_aa_n_claims$a,attributesmapper$aid)]
         s_aa_n_claims$s <- sourcesmapper$s[match(s_aa_n_claims$s,sourcesmapper$sid)]
